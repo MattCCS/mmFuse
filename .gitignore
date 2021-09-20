@@ -1,0 +1,21 @@
+# Mac
+*.DS_Store
+
+# Python
+*.pyc
+
+# virtualenv
+.Python
+bin/
+include/
+lib/
+pip-selfcheck.json
+venv/
+venv-*/
+
+# logs
+logs/
+
+# targets
+targets/
+

@@ -1,0 +1,15 @@
+#!/bin/bash
+
+SAVED_PWD=$PWD
+
+SOURCE="${BASH_SOURCE[0]}"
+while [ -h "$SOURCE" ]; do
+  DIR="$( cd -P "$( dirname "$SOURCE" )" && pwd )"
+  SOURCE="$(readlink "$SOURCE")"
+  [[ $SOURCE != /* ]] && SOURCE="$DIR/$SOURCE"
+done
+DIR="$( cd -P "$( dirname "$SOURCE" )" && pwd )"
+
+cd "$DIR"
+
+SAVED_PWD=$SAVED_PWD /Library/Frameworks/Python.framework/Versions/3.7/bin/python3 ext_test.py "$@"

@@ -1,0 +1,22 @@
+#!/bin/bash
+
+SAVED_PWD=$PWD
+
+SOURCE="${BASH_SOURCE[0]}"
+while [ -h "$SOURCE" ]; do
+  DIR="$( cd -P "$( dirname "$SOURCE" )" && pwd )"
+  SOURCE="$(readlink "$SOURCE")"
+  [[ $SOURCE != /* ]] && SOURCE="$DIR/$SOURCE"
+done
+DIR="$( cd -P "$( dirname "$SOURCE" )" && pwd )"
+
+cd "/Users/matt/Repos/Mine/Experiments2/FUSE"
+source venv/bin/activate
+
+SAVED_PWD=$SAVED_PWD \
+MMCONFIG=/Users/matt/Repos/Mine/MediaMan/config.yaml \
+python3 \
+passthrough-file.py \
+"$@" \
+1>/Users/matt/Repos/Mine/Experiments2/ext_test/hh.out.log \
+2>/Users/matt/Repos/Mine/Experiments2/ext_test/hh.err.log
