@@ -7,23 +7,19 @@ This is an attempt at mapping FUSE API calls to REST API calls.
 import argparse
 import base64
 import logging
-import sys
 import urllib.parse
 import urllib.request
-import inspect
 import pathlib
 import psutil
+
+import fuse
+import msgpack
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 # handler = logging.FileHandler(f"{__name__}.log")
 # handler.setLevel(logging.DEBUG)
 # logger.addHandler(handler)
-
-
-import fuse
-
-import msgpack
 
 
 def pack_q(args, kwargs, procname):
