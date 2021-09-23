@@ -14,6 +14,7 @@ import psutil
 
 import fuse
 import msgpack
+import requests
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
@@ -57,9 +58,12 @@ class Fuse2Rest(fuse.Operations):
 
         print(f"{url} ({procname})")
 
-        data = urllib.parse.urlencode({"q": q}).encode()
-        req = urllib.request.Request(url, data=data)
-        result = msgpack.unpackb(urllib.request.urlopen(req).read())
+        # data = urllib.parse.urlencode({"q": q}).encode()
+        # req = urllib.request.Request(url, data=data)
+        # result = msgpack.unpackb(urllib3.request.urlopen(req).read())
+        req = requests.post(url, data={"q": q}, stream=True)
+        result = msgpack.unpackb(req.raw.read())
+
         if result["error"]:
             print(result["error"])
             raise fuse.FuseOSError(result["error"])

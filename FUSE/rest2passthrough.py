@@ -8,9 +8,10 @@ import logging
 from flask import Flask, request
 import msgpack
 
-import fuse_clients.passthough
-import fuse_clients.read_only_passthrough
-import fuse_clients.tempfile_passthrough
+from FUSE.fuse_clients import passthough
+from FUSE.fuse_clients import read_only_passthrough
+from FUSE.fuse_clients import tempfile_passthrough
+
 
 FUSE_CLIENT = None
 
@@ -37,7 +38,7 @@ def callback(funcname):
     global FUSE_CLIENT
 
     (args, kwargs, procname) = unpack_q(request.form["q"])
-    print(f"({procname}) {funcname} {args[:1]}")
+    # print(f"({procname}) {funcname} {args[:1]}")
 
     try:
         result = call(procname, funcname, *args, **kwargs)
@@ -45,6 +46,8 @@ def callback(funcname):
     except Exception as e:
         # TODO: set explicit value on custom exception object
         print(repr(e))
+        # import traceback
+        # traceback.print_exc()
         out = {"result": None, "error": e.args[0]}
 
     return msgpack.packb(out)
@@ -64,12 +67,12 @@ def main():
     args = parse_args()
 
     if args.passthrough:
-        # FUSE_CLIENT = fuse_clients.passthough.Passthrough(args.passthrough)
-        FUSE_CLIENT = fuse_clients.read_only_passthrough.ReadOnlyPassthrough(args.passthrough)
+        # FUSE_CLIENT = passthough.Passthrough(args.passthrough)
+        FUSE_CLIENT = read_only_passthrough.ReadOnlyPassthrough(args.passthrough)
     else:
         raise NotImplementedError()
 
-    app.run(threaded=False, port=4001, host="0.0.0.0", debug=True)
+    app.run(threaded=True, port=4001, host="0.0.0.0", debug=True)
 
 
 if __name__ == '__main__':

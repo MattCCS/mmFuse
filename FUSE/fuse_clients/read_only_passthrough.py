@@ -5,6 +5,8 @@ import os
 import tempfile
 import typing
 
+from FUSE.backends import mmbackend
+
 
 FAKE_FILE_DESCRIPTOR = 0
 FAKE_FOLDER_SIZE = 96
@@ -156,7 +158,8 @@ class AbstractReadOnlyPassthrough(abc.ABC):
 class ReadOnlyPassthrough(AbstractReadOnlyPassthrough):
     def __init__(self, root):
         self.root = root
-        self.backend = StaticFlatBackend({"a.txt": b"hi", "b.txt": b"ho!", "c.txt": b"how do you do?"})
+        # self.backend = StaticFlatBackend({"a.txt": b"hi", "b.txt": b"ho!", "c.txt": b"how do you do?"})
+        self.backend = mmbackend.FlatMMBackend()
 
     def verify_procname(self, procname):
         pass
@@ -206,6 +209,7 @@ class ReadOnlyPassthrough(AbstractReadOnlyPassthrough):
             'f_favail', 'f_ffree', 'f_files', 'f_flag',
             'f_frsize', 'f_namemax'))
         out["f_flag"] |= os.ST_RDONLY  # read-only
+        # out["f_frsize"] = 2**20
         return out
 
     def open(self, path, flags):

@@ -32,7 +32,7 @@ def background_load(buffer, block, blocksize, blocks):
     offset = block * blocksize
     length = blocks * blocksize
     print(f"[r] Async read of block {block}, blocks {blocks}")
-    buffer.load_async(buffer.source(offset, length), block, blocks)
+    buffer.load_async(buffer.source(offset=offset, length=length), block, blocks)
 
 
 class BlockwiseBuffer(AbstractBuffer):
@@ -117,7 +117,7 @@ class BlockwiseBuffer(AbstractBuffer):
 
         block = self.block(offset)
         print(f"[r] Sync read of block {block}")
-        read = self.source(block * self.blocksize, self.blocksize)
+        read = self.source(offset=block * self.blocksize, length=self.blocksize)
         self.cache[block] = read
         self.hits[block] = time.monotonic()
 
