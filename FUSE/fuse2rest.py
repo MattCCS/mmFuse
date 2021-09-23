@@ -11,6 +11,7 @@ import urllib.parse
 import urllib.request
 import pathlib
 import psutil
+import socket
 
 import fuse
 import msgpack
@@ -23,10 +24,10 @@ logger.setLevel(logging.DEBUG)
 # logger.addHandler(handler)
 
 
-def pack_q(args, kwargs, procname):
-    bytez = msgpack.packb({"args": args, "kwargs": kwargs, "proc": procname})
-    q = base64.urlsafe_b64encode(bytez).decode("utf-8")
-    return q
+def pack_q(funcname, args, kwargs, procname):
+    bytez = msgpack.packb({"funcname": funcname, "args": args, "kwargs": kwargs, "proc": procname})
+    # q = base64.urlsafe_b64encode(bytez).decode("utf-8")
+    return bytez
 
 
 class Fuse2Rest(fuse.Operations):
@@ -44,6 +45,8 @@ class Fuse2Rest(fuse.Operations):
 
     def __init__(self, uri):
         self._uri = uri.rstrip("/")
+        # self._socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        # self._socket.connect(("", int(self._uri.split(":")[-1])))
 
         for funcname in Fuse2Rest.FUNC_NAMES:
             setattr(self, funcname, self._wrapper(funcname))
@@ -53,16 +56,30 @@ class Fuse2Rest(fuse.Operations):
         proc = psutil.Process(pid)
         procname = proc.name()
 
-        q = pack_q(args, kwargs, procname)
-        url = self._uri + "/" + funcname
+        q = pack_q(funcname, args, kwargs, procname)
 
-        print(f"{url} ({procname})")
+        SOCKETS = True
+        if SOCKETS:
+            self._socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            self._socket.connect(("", int(self._uri.split(":")[-1])))
+            # print("sending")
+            self._socket.send(q + b"\x00\x01\x00\x01\x00\x01\x00\x01")
+            # print("receiving")
+            recv = self._socket.recv(10_000_000)  # TODO: 10MB isn't a guarantee
+            # print("got", recv)
+            result = msgpack.unpackb(recv)
+            # print("unpacked")
+            self._socket.close()
 
-        # data = urllib.parse.urlencode({"q": q}).encode()
-        # req = urllib.request.Request(url, data=data)
-        # result = msgpack.unpackb(urllib3.request.urlopen(req).read())
-        req = requests.post(url, data={"q": q}, stream=True)
-        result = msgpack.unpackb(req.raw.read())
+        # if HTTP:
+        #     url = self._uri + "/" + funcname
+        #     print(f"{url} ({procname})")
+
+        #     # data = urllib.parse.urlencode({"q": q}).encode()
+        #     # req = urllib.request.Request(url, data=data)
+        #     # result = msgpack.unpackb(urllib3.request.urlopen(req).read())
+        #     req = requests.post(url, data={"q": q}, stream=True)
+        #     result = msgpack.unpackb(req.raw.read())
 
         if result["error"]:
             print(result["error"])
@@ -90,7 +107,7 @@ def main():
     fuse.FUSE(
         Fuse2Rest(args.uri),
         args.mountpoint,
-        nothreads=False,
+        nothreads=True,
         foreground=True,
         volname=volname,
     )

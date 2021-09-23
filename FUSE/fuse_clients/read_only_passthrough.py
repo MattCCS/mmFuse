@@ -13,6 +13,12 @@ FAKE_FOLDER_SIZE = 96
 READ_ONLY_FOLDER_MODE = 0o40444
 READ_ONLY_FILE_MODE = 0o100444
 
+QUICKLOOK_PROCESSES = {
+    "QuickLookSatellite",
+    "QuickLookUIService",
+    "quicklookd",
+}
+
 
 def readonly():
     raise Exception(errno.EROFS)
@@ -162,7 +168,9 @@ class ReadOnlyPassthrough(AbstractReadOnlyPassthrough):
         self.backend = mmbackend.FlatMMBackend()
 
     def verify_procname(self, procname):
-        pass
+        # pass
+        if procname in QUICKLOOK_PROCESSES:
+            deny()
 
     def access(self, path, mode):
         if not self.backend.has(path):

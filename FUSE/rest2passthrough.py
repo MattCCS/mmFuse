@@ -4,6 +4,7 @@
 import argparse
 import base64
 import logging
+import socket
 
 from flask import Flask, request
 import msgpack
@@ -21,10 +22,10 @@ app = Flask(__name__)
 logging.getLogger("werkzeug").setLevel(logging.ERROR)
 
 
-def unpack_q(q):
-    bytez = base64.urlsafe_b64decode(q.encode("utf-8"))
+def unpack_q(bytez):
+    # bytez = base64.urlsafe_b64decode(q.encode("utf-8"))
     data = msgpack.unpackb(bytez)
-    return (data["args"], data["kwargs"], data["proc"])
+    return (data["funcname"], data["args"], data["kwargs"], data["proc"])
 
 
 def call(procname, funcname, *args, **kwargs):
@@ -53,6 +54,44 @@ def callback(funcname):
     return msgpack.packb(out)
 
 
+def socket_loop():
+    _socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    _socket.bind(("", 4013))
+    _socket.listen()
+    while True:
+        (conn, addr) = _socket.accept()
+        with conn:
+            # print("Connected by", addr)
+            agg = b""
+            while True:
+                data = conn.recv(10_000_000)  # TODO: 10MB isn't a guarantee
+                # print("received")
+                if not data:
+                    break
+                agg += data
+                if agg.endswith(b"\x00\x01\x00\x01\x00\x01\x00\x01"):  # TODO: OOF.
+                    agg = agg[:-8]
+                    break
+
+            # print("unpacking")
+            (funcname, args, kwargs, procname) = unpack_q(agg)
+            print((procname, funcname, args[:1]))
+
+            try:
+                result = call(procname, funcname, *args, **kwargs)
+                out = {"result": result, "error": None}
+            except Exception as e:
+                # TODO: set explicit value on custom exception object
+                print(repr(e))
+                # import traceback
+                # traceback.print_exc()
+                out = {"result": None, "error": e.args[0]}
+
+            # print("sending")
+            conn.sendall(msgpack.packb(out))
+            # print("sent")
+
+
 def parse_args():
     parser = argparse.ArgumentParser()
     # parser.add_argument("client", choices=["passthrough", "mediaman"])
@@ -72,7 +111,8 @@ def main():
     else:
         raise NotImplementedError()
 
-    app.run(threaded=True, port=4001, host="0.0.0.0", debug=True)
+    # app.run(threaded=True, port=4001, host="0.0.0.0", debug=True)
+    socket_loop()
 
 
 if __name__ == '__main__':
