@@ -3,16 +3,14 @@
 
 import argparse
 import base64
-import errno
-import json
 import logging
-import os
 
 from flask import Flask, request
 import msgpack
 
 import fuse_clients.passthough
-import fuse_clients.buffered_passthrough
+import fuse_clients.read_only_passthrough
+import fuse_clients.tempfile_passthrough
 
 FUSE_CLIENT = None
 
@@ -67,7 +65,7 @@ def main():
 
     if args.passthrough:
         # FUSE_CLIENT = fuse_clients.passthough.Passthrough(args.passthrough)
-        FUSE_CLIENT = fuse_clients.buffered_passthrough.BufferedPassthrough(args.passthrough)
+        FUSE_CLIENT = fuse_clients.read_only_passthrough.ReadOnlyPassthrough(args.passthrough)
     else:
         raise NotImplementedError()
 
