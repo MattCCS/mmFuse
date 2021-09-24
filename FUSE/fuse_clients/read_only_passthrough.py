@@ -6,6 +6,7 @@ import tempfile
 import typing
 
 from FUSE.backends import mmbackend
+from FUSE.backends import osbackend
 
 
 FAKE_FILE_DESCRIPTOR = 0
@@ -165,19 +166,22 @@ class ReadOnlyPassthrough(AbstractReadOnlyPassthrough):
     def __init__(self, root):
         self.root = root
         # self.backend = StaticFlatBackend({"a.txt": b"hi", "b.txt": b"ho!", "c.txt": b"how do you do?"})
-        self.backend = mmbackend.FlatMMBackend()
+        # self.backend = mmbackend.FlatMMBackend()
+        self.backend = osbackend.ReadOnlyOSBackend(self.root)
 
     def verify_procname(self, procname):
-        # pass
-        if procname in QUICKLOOK_PROCESSES:
-            deny()
+        pass
+        # if procname in QUICKLOOK_PROCESSES:
+        #     deny()
 
     def access(self, path, mode):
         if not self.backend.has(path):
             notreal()
 
     def getattr(self, path, fh=None):
-        if path == "/":
+        if not self.backend.has(path):
+            return notreal()
+        if self.backend.is_dir(path):
             return {
                 'st_atime': 0,
                 'st_ctime': 0,
@@ -188,7 +192,7 @@ class ReadOnlyPassthrough(AbstractReadOnlyPassthrough):
                 'st_mode': READ_ONLY_FOLDER_MODE,
                 'st_size': FAKE_FOLDER_SIZE,
             }
-        elif self.backend.has(path):
+        else:
             return {
                 "st_atime": 0,
                 "st_ctime": 0,
@@ -199,7 +203,6 @@ class ReadOnlyPassthrough(AbstractReadOnlyPassthrough):
                 "st_mode": READ_ONLY_FILE_MODE,
                 "st_size": self.backend.size(path),
             }
-        notreal()
 
     def readdir(self, path, fh):
         if not self.backend.has(path):

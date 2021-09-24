@@ -21,9 +21,11 @@ def notreal():
     raise Exception(errno.ENOENT)
 
 
+# TODO: rename ReadOnlyFlatMMBackend
 class FlatMMBackend:
     def __init__(self, service_selector="local"):
         self._service_selector = service_selector
+        print(service_selector)
         self._list_result = mediaman.core.api.run_list(service_selector=self._service_selector)
         self._files = {
             f["name"] : {
@@ -36,6 +38,7 @@ class FlatMMBackend:
             }
             for f in self._list_result
         }
+        print("ready")
 
     def has(self, path):
         path = path.lstrip("/")

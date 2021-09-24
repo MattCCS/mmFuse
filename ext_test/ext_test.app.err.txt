@@ -1,0 +1,8 @@
+Traceback (most recent call last):
+  File "ext_test.py", line 46, in <module>
+    main()
+  File "ext_test.py", line 18, in main
+    log(sys.argv)
+  File "ext_test.py", line 13, in log
+    with open("/Users/matt/Repos/Mine/Experiments2/ext_test/out.log", "a+") as outfile:
+FileNotFoundError: [Errno 2] No such file or directory: '/Users/matt/Repos/Mine/Experiments2/ext_test/out.log'

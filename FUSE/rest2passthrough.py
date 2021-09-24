@@ -22,8 +22,8 @@ app = Flask(__name__)
 logging.getLogger("werkzeug").setLevel(logging.ERROR)
 
 
-def unpack_q(bytez):
-    # bytez = base64.urlsafe_b64decode(q.encode("utf-8"))
+def unpack_q(q):
+    bytez = base64.urlsafe_b64decode(q.encode("utf-8"))
     data = msgpack.unpackb(bytez)
     return (data["funcname"], data["args"], data["kwargs"], data["proc"])
 
@@ -38,8 +38,12 @@ def call(procname, funcname, *args, **kwargs):
 def callback(funcname):
     global FUSE_CLIENT
 
-    (args, kwargs, procname) = unpack_q(request.form["q"])
+    (_funcname, args, kwargs, procname) = unpack_q(request.form["q"])
     # print(f"({procname}) {funcname} {args[:1]}")
+    if procname == "ls":
+        print(f"({procname}) {funcname} {args}")
+    elif funcname == "read":
+        print(f"({procname}) {funcname} {args}")
 
     try:
         result = call(procname, funcname, *args, **kwargs)
@@ -111,8 +115,8 @@ def main():
     else:
         raise NotImplementedError()
 
-    # app.run(threaded=True, port=4001, host="0.0.0.0", debug=True)
-    socket_loop()
+    app.run(threaded=True, port=4001, host="0.0.0.0", debug=True)
+    # socket_loop()
 
 
 if __name__ == '__main__':
