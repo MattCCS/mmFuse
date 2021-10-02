@@ -44,13 +44,9 @@ class ReadOnlyOSBackend:
                     source=functools.partial(self._read, realpath)
                 )
             }
-            print(self._files.keys())
 
-    # def _full_path(self, partial):
-    #     if partial.startswith("/"):
-    #         partial = partial[1:]
-    #     path = os.path.join(self._root, partial)
-    #     return path
+        # print(self._files.keys())
+        print(f"ready: ReadOnlyOSBackend({self._root})")
 
     def has(self, path):
         print(f"has {(path)}")
@@ -64,8 +60,6 @@ class ReadOnlyOSBackend:
 
     def list(self, path):
         print(f"list {(path)}")
-        # / -> *
-        # /a -> a/*
         out = [
             str(pathlib.Path(p).relative_to(path)).strip("/")
             for p in self._files
@@ -74,9 +68,6 @@ class ReadOnlyOSBackend:
             )
         ]
         print(out); return out
-        # path = str(self._root) + path
-        # print(path)
-        # return [str(p) for p in pathlib.Path(path).glob("*")]
 
     def size(self, path):
         print(f"size {(path)}")

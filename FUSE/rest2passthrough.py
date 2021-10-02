@@ -86,7 +86,7 @@ def socket_loop():
                 out = {"result": result, "error": None}
             except Exception as e:
                 # TODO: set explicit value on custom exception object
-                print(repr(e))
+                print(f"{repr(e)} on {funcname} {args[:1]} ({procname})")
                 # import traceback
                 # traceback.print_exc()
                 out = {"result": None, "error": e.args[0]}
