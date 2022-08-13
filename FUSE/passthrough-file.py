@@ -27,8 +27,8 @@ import httplib2shim  # NOTE: fixes non-thread-safe httplib2 problems caused by G
 httplib2shim.patch()
 
 import pathlib
-sys.path.append("/Users/matt/home/Repos/Mine/MediaMan/venv/lib/python3.7/site-packages")
-sys.path.append("/Users/matt/home/Repos/Mine/MediaMan")
+# sys.path.append("/Users/matt/home/Repos/Mine/MediaMan/venv/lib/python3.7/site-packages")
+# sys.path.append(os.environ.get("MMCONFIG", ""))
 
 from mediaman.core import api  # noqa
 import mediaman.core.policy  # noqa

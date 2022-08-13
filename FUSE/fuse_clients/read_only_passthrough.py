@@ -59,6 +59,9 @@ class StaticFlatBackend:
         path = path.lstrip("/")
         return path == "" or path in self._files
 
+    def is_dir(self, path):
+        return path == "/"
+
     def list(self, path):
         path = path.lstrip("/")
         if path == "":
@@ -181,11 +184,16 @@ class AbstractReadOnlyPassthrough(abc.ABC):
 
 
 class ReadOnlyPassthrough(AbstractReadOnlyPassthrough):
-    def __init__(self, root):
-        self.root = root
-        # self.backend = StaticFlatBackend({"a.txt": b"hi", "b.txt": b"ho!", "c.txt": b"how do you do?"})
-        # self.backend = mmbackend.FlatMMBackend()
-        self.backend = osbackend.ReadOnlyOSBackend(self.root)
+    def __init__(self, root=None, mediaman=False, filesystem_image_mm_hash=None):
+        if root:
+            self.backend = osbackend.ReadOnlyOSBackend(root)
+        elif mediaman:
+            self.backend = mmbackend.FlatMMBackend()
+        elif filesystem_image_mm_hash:
+            self.backend = mmbackend.ReadOnlyPredefinedMMBackend(filesystem_image_mm_hash=filesystem_image_mm_hash)
+        else:
+            self.backend = StaticFlatBackend({"a.txt": b"hi", "b.txt": b"ho!", "c.txt": b"how do you do?"})
+
 
     def verify_procname(self, procname):
         pass

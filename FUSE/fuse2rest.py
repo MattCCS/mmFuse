@@ -131,7 +131,7 @@ def main():
         # locallocks=True,
         # nolock=True,
         # rdirplus=True,
-        # rsize=1_000_000,
+        # rsize=1_000_000,  # this crashes entire system...
     )
 
 

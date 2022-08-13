@@ -100,7 +100,8 @@ def parse_args():
     parser = argparse.ArgumentParser()
     # parser.add_argument("client", choices=["passthrough", "mediaman"])
     parser.add_argument("-p", "--passthrough", default=None, help="Path to the passthrough folder")
-    parser.add_argument("-m", "--mediman", default=False, action="store_true")
+    parser.add_argument("-m", "--mediaman", default=False, action="store_true")
+    parser.add_argument("-i", "--filesystem_image_mm_hash", default=None, help="MediaMan hash of a JSON file describing a filesystem")
     return parser.parse_args()
 
 
@@ -109,11 +110,11 @@ def main():
 
     args = parse_args()
 
-    if args.passthrough:
-        # FUSE_CLIENT = passthough.Passthrough(args.passthrough)
-        FUSE_CLIENT = read_only_passthrough.ReadOnlyPassthrough(args.passthrough)
-    else:
-        raise NotImplementedError()
+    FUSE_CLIENT = read_only_passthrough.ReadOnlyPassthrough(
+        root=args.passthrough,
+        mediaman=args.mediaman,
+        filesystem_image_mm_hash=args.filesystem_image_mm_hash,
+    )
 
     app.run(threaded=True, port=4001, host="0.0.0.0", debug=True)
     # socket_loop()

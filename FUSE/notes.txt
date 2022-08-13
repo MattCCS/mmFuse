@@ -1,0 +1,4 @@
+Users will need libfuse
+
+Mac users can get it via https://osxfuse.github.io
+
