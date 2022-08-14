@@ -2,6 +2,7 @@
 import os
 import errno
 
+
 REQUIRED_FOR_MUSIC = frozenset([
     "Music",
 ])
@@ -59,7 +60,7 @@ REQUIRED_FOR_FINDER = frozenset([
 ALLOWED = frozenset(["ls"]) | REQUIRED_FOR_FINDER | REQUIRED_FOR_QUICKLOOK | REQUIRED_FOR_THUMBNAILS
 
 
-class Passthrough:
+class PassthroughFuseClient:
     def __init__(self, root):
         self.root = root
 

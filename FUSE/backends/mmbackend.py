@@ -1,7 +1,7 @@
 
-import errno
 import functools
 import json
+import logging
 import os
 import pathlib
 import sys
@@ -12,6 +12,9 @@ import mediaman.core.api
 from FUSE.backends.abstract import AbstractReadOnlyBackend
 from FUSE.caches import block_cache
 from FUSE.errors import deny, notreal
+
+
+(logger := logging.getLogger(__name__)).setLevel(logging.INFO)
 
 
 class ReadOnlyPredefinedMMBackend(AbstractReadOnlyBackend):
@@ -26,7 +29,7 @@ class ReadOnlyPredefinedMMBackend(AbstractReadOnlyBackend):
         self._filesystem = json.loads(list(result)[0])
         self._caches = {}  # hash -> func()
 
-        print("ready")
+        logging.info("ready")
 
     @staticmethod
     def _path_to_keys(path):
@@ -40,7 +43,7 @@ class ReadOnlyPredefinedMMBackend(AbstractReadOnlyBackend):
 
     def _access(self, path):
         keys = ReadOnlyPredefinedMMBackend._path_to_keys(path)
-        print(f"_access ({path=}) - {keys=}")
+        logging.debug(f"_access ({path=}) - {keys=}")
         d = self._filesystem
         try:
             for k in keys:
@@ -50,22 +53,22 @@ class ReadOnlyPredefinedMMBackend(AbstractReadOnlyBackend):
         return d
 
     def has(self, path):
-        print(f"has ({path})")
+        logging.debug(f"has ({path})")
         return self._access(path) is not None
 
     def is_dir(self, path):
-        print(f"is_dir ({path})")
+        logging.debug(f"is_dir ({path})")
         return ReadOnlyPredefinedMMBackend._is_dir(self._access(path))
 
     def list(self, path):
-        print(f"list ({path})")
+        logging.debug(f"list ({path})")
         obj = self._access(path)
         if obj is None:
             deny()
         return list(obj.keys())
 
     def size(self, path):
-        print(f"size ({path})")
+        logging.debug(f"size ({path})")
         obj = self._access(path)
         if obj is None:
             notreal()
@@ -74,7 +77,7 @@ class ReadOnlyPredefinedMMBackend(AbstractReadOnlyBackend):
         return obj["size"]
 
     def read(self, path, length, offset):
-        print(f"read ({path=}, {length=}, {offset=})")
+        logging.debug(f"read ({path=}, {length=}, {offset=})")
         obj = self._access(path)
         if obj is None:
             notreal()
@@ -92,7 +95,7 @@ class ReadOnlyPredefinedMMBackend(AbstractReadOnlyBackend):
         return buffer.read(length=length, offset=offset)
 
     def _read(self, hash, length, offset):
-        print(f"_read ({hash}, {length}, {offset})")
+        logging.debug(f"_read ({hash}, {length}, {offset})")
         try:
             return b"".join(mediaman.core.api.run_stream_range(
                 service_selector=self._service_selector,
@@ -109,7 +112,7 @@ class ReadOnlyFlatMMBackend(AbstractReadOnlyBackend):
     def __init__(self, service_selector="local"):
         service_selector = "sam"
         self._service_selector = service_selector
-        print(service_selector)
+        logging.debug(f"{service_selector=}")
 
         # full list:
         # self._list_result = mediaman.core.api.run_list(service_selector=self._service_selector)
@@ -128,18 +131,18 @@ class ReadOnlyFlatMMBackend(AbstractReadOnlyBackend):
             }
             for f in self._list_result
         }
-        print("ready")
+        logging.debug("ready")
 
     def has(self, path):
         path = path.lstrip("/")
         return path == "" or path in self._files
 
     def is_dir(self, path):
-        print(f"is_dir ({path})")
+        logging.debug(f"is_dir ({path})")
         return path == "/"
 
     def list(self, path):
-        print(f"list ({path})")
+        logging.debug(f"list ({path})")
         path = path.lstrip("/")
         if path == "":
             return list(self._files.keys())
@@ -159,7 +162,7 @@ class ReadOnlyFlatMMBackend(AbstractReadOnlyBackend):
         notreal()
 
     def _read(self, hash, length, offset):
-        print(f"_read ({hash}, {length}, {offset})")
+        logging.debug(f"_read ({hash}, {length}, {offset})")
         return b"".join(mediaman.core.api.run_stream_range(
             service_selector=self._service_selector,
             root=pathlib.Path(),
@@ -170,8 +173,8 @@ class ReadOnlyFlatMMBackend(AbstractReadOnlyBackend):
 
 
 def test():
-    b = ReadOnlyPredefinedMMBackend()
-    print(b)
+    backend = ReadOnlyPredefinedMMBackend()
+    logging.debug(f"{backend=}")
 
 if __name__ == '__main__':
     test()

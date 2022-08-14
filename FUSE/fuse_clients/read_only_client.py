@@ -1,8 +1,5 @@
 
-import abc
 import os
-import tempfile
-import typing
 
 from FUSE.backends import mmbackend, osbackend, static
 from FUSE.errors import readonly, deny, notreal
@@ -97,4 +94,3 @@ class ReadOnlyFuseClient(AbstractReadOnlyFuseClient):
         """
         print(path, length, offset)
         return self.backend.read(path, length, offset)
-

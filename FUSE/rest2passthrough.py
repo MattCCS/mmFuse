@@ -3,6 +3,7 @@
 
 import argparse
 import base64
+import functools
 import logging
 import socket
 
@@ -32,19 +33,27 @@ def call(procname, funcname, *args, **kwargs):
     return getattr(FUSE_CLIENT, funcname)(*args, **kwargs)
 
 
+# TODO(mcotton): Clear this cache on `refresh`, once that concept exists.
+@functools.cache
+def call_cached(procname, funcname, *args, **kwargs):
+    print(f"Caching: {procname=}, {funcname=}, {args=}, {kwargs=}")
+    return call(procname, funcname, *args, **kwargs)
+
+
 @app.route('/<funcname>', methods=["POST"])
 def callback(funcname):
     global FUSE_CLIENT
 
     (_funcname, args, kwargs, procname) = unpack_q(request.form["q"])
-    # print(f"({procname}) {funcname} {args[:1]}")
-    if procname == "ls":
-        print(f"({procname}) {funcname} {args}")
-    elif funcname == "read":
-        print(f"({procname}) {funcname} {args}")
+
+    if funcname in {"getattr", "statfs", "readdir"}:
+        cached_call = lambda: call_cached(procname, funcname, *args, **kwargs)
+    else:
+        print(f"Fresh: {procname=}, {funcname=}, {args=}, {kwargs=}")
+        cached_call = lambda: call(procname, funcname, *args, **kwargs)
 
     try:
-        result = call(procname, funcname, *args, **kwargs)
+        result = cached_call()
         out = {"result": result, "error": None}
     except Exception as e:
         # TODO: set explicit value on custom exception object
