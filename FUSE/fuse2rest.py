@@ -7,11 +7,13 @@ This is an attempt at mapping FUSE API calls to REST API calls.
 import argparse
 import base64
 import logging
-import urllib.parse
-import urllib.request
 import pathlib
 import psutil
 import socket
+import threading
+import time
+import urllib.parse
+import urllib.request
 
 import fuse
 import msgpack
@@ -48,11 +50,17 @@ class Fuse2Rest(fuse.Operations):
         # self._socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         # self._socket.connect(("", int(self._uri.split(":")[-1])))
 
-        for funcname in Fuse2Rest.FUNC_NAMES:
-            setattr(self, funcname, self._wrapper(funcname))
+        self._session = requests.Session()
 
-    def _api(self, funcname, *args, **kwargs):
+        for funcname in Fuse2Rest.FUNC_NAMES:
+            setattr(self, funcname, self._wrapper(funcname, self._session))
+
+    def _api(self, funcname, session, *args, **kwargs):
+        t0 = time.perf_counter()
+        thread_id = threading.get_ident()
+
         pid = fuse.fuse_get_context()[-1]
+        print(f"Starting {thread_id=}, {pid=}")
         proc = psutil.Process(pid)
         procname = proc.name()
 
@@ -74,22 +82,27 @@ class Fuse2Rest(fuse.Operations):
         HTTP = True
         if HTTP:
             url = self._uri + "/" + funcname
-            print(f"{url} ({procname})")
+            print(f"\t{url} ({procname})")
 
             # data = urllib.parse.urlencode({"q": q}).encode()
             # req = urllib.request.Request(url, data=data)
             # result = msgpack.unpackb(urllib3.request.urlopen(req).read())
-            req = requests.post(url, data={"q": q}, stream=True)
+            req = session.post(url, data={"q": q}, stream=True)
             result = msgpack.unpackb(req.raw.read())
 
+        t1 = time.perf_counter()
+        dt = t1 - t0
+        print(f"\tResolving {thread_id=} after {int(dt*1000)=}ms")
+
         if result["error"]:
-            print(result["error"])
+            print(f'\t{result["error"]=}')
             raise fuse.FuseOSError(result["error"])
+
         return result["result"]
 
-    def _wrapper(self, funcname):
+    def _wrapper(self, funcname, session):
         def f(*args, **kwargs):
-            return self._api(funcname, *args, **kwargs)
+            return self._api(funcname, session, *args, **kwargs)
         return f
 
 
@@ -105,16 +118,19 @@ def main():
 
     volname = pathlib.Path(args.mountpoint).name
 
+    import signal
+    signal.signal(signal.SIGINT, signal.SIG_DFL)  # Restores CTRL+C functionality
+
     fuse.FUSE(
         Fuse2Rest(args.uri),
         args.mountpoint,
-        nothreads=True,
-        foreground=True,
+        nothreads=True,  # True
+        foreground=True,  # `False` hangs forever and locks fuse...
         volname=volname,
 
         # macOS options
         rdonly=True,
-        iosize=2**20,
+        iosize=2**22,  # 2**20
         # blocksize=2**17,  # this corrupts...
 
         auto_cache=True,
@@ -125,7 +141,7 @@ def main():
         nobrowse=True,
         nosuid=True,
 
-        # noreadahead=True,
+        noreadahead=False,  # Default.  `True` is extremely slow.
 
         # # macOS options
         # locallocks=True,

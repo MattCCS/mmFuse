@@ -9,20 +9,12 @@ import sys
 sys.path.append(os.environ.get("MMSRC", ""))
 import mediaman.core.api
 
-from FUSE.caches import cachetest, cachetest2
+from FUSE.backends.abstract import AbstractReadOnlyBackend
+from FUSE.caches import block_cache
+from FUSE.errors import readonly, deny, notreal
 
 
-def readonly():
-    raise Exception(errno.EROFS)
-
-def deny():
-    raise Exception(errno.EACCES)
-
-def notreal():
-    raise Exception(errno.ENOENT)
-
-
-class ReadOnlyPredefinedMMBackend:
+class ReadOnlyPredefinedMMBackend(AbstractReadOnlyBackend):
     def __init__(self, filesystem_image_mm_hash="xxh64:28958e05597643fb", service_selector="local"):
         self._service_selector = service_selector
 
@@ -32,6 +24,8 @@ class ReadOnlyPredefinedMMBackend:
             service_selector=self._service_selector,
         )
         self._filesystem = json.loads(list(result)[0])
+        self._caches = {}  # hash -> func()
+
         print("ready")
 
     @staticmethod
@@ -45,9 +39,8 @@ class ReadOnlyPredefinedMMBackend:
         return isinstance(obj, dict) and obj.get("file", False) is False
 
     def _access(self, path):
-        print(f"_access ({path})")
         keys = ReadOnlyPredefinedMMBackend._path_to_keys(path)
-        print(keys)
+        print(f"_access ({path=}) - {keys=}")
         d = self._filesystem
         try:
             for k in keys:
@@ -81,14 +74,22 @@ class ReadOnlyPredefinedMMBackend:
         return obj["size"]
 
     def read(self, path, length, offset):
-        print(f"read ({path}, {length}, {offset})")
+        print(f"read ({path=}, {length=}, {offset=})")
         obj = self._access(path)
         if obj is None:
             notreal()
         elif self._is_dir(obj):
             deny()
         hash = obj["hash"]
-        return self._read(hash=hash, length=length, offset=offset)
+
+        if hash not in self._caches:
+            self._caches[hash] = block_cache.BlockwiseBuffer(
+                size=obj["size"],
+                source=functools.partial(self._read, hash),
+            )
+        buffer = self._caches[hash]
+
+        return buffer.read(length=length, offset=offset)
 
     def _read(self, hash, length, offset):
         print(f"_read ({hash}, {length}, {offset})")
@@ -104,8 +105,7 @@ class ReadOnlyPredefinedMMBackend:
             raise notreal()
 
 
-# TODO: rename ReadOnlyFlatMMBackend
-class FlatMMBackend:
+class ReadOnlyFlatMMBackend(AbstractReadOnlyBackend):
     def __init__(self, service_selector="local"):
         service_selector = "sam"
         self._service_selector = service_selector
@@ -121,14 +121,10 @@ class FlatMMBackend:
             f["name"] : {
                 "size": f["size"],
                 "hash": f["hashes"][0],
-                "buffer": cachetest2.BlockwiseBuffer(
+                "buffer": block_cache.BlockwiseBuffer(
                     size=f["size"],
                     source=functools.partial(self._read, f["hashes"][0]),
                 )
-                # "buffer": cachetest.DumbBytewiseBuffer(
-                #     source=functools.partial(self._read, f["hashes"][0]),
-                #     cap=f["size"],
-                # )
             }
             for f in self._list_result
         }

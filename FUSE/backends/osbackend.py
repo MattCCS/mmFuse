@@ -4,7 +4,8 @@ import functools
 import os
 import pathlib
 
-from FUSE.caches import cachetest2
+from FUSE.backends.abstract import AbstractReadOnlyBackend
+from FUSE.caches import block_cache
 
 
 def readonly():
@@ -19,7 +20,7 @@ def notreal():
     raise Exception(errno.ENOENT)
 
 
-class ReadOnlyOSBackend:
+class ReadOnlyOSBackend(AbstractReadOnlyBackend):
     def __init__(self, root):
         self._root = pathlib.Path(root)
         self._files = {}
@@ -39,7 +40,7 @@ class ReadOnlyOSBackend:
             self._files[path] = {
                 "type": type,
                 "size": size,
-                "buffer": cachetest2.BlockwiseBuffer(
+                "buffer": block_cache.BlockwiseBuffer(
                     size=size,
                     source=functools.partial(self._read, realpath)
                 )

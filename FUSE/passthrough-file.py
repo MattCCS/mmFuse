@@ -32,8 +32,7 @@ import pathlib
 
 from mediaman.core import api  # noqa
 import mediaman.core.policy  # noqa
-import cachetest  # noqa
-import cachetest2  # noqa
+import block_cache  # noqa
 import functools  # noqa
 
 
@@ -313,7 +312,7 @@ def prep_mountpoint(root, service, hash=None, fuzzy=None):
         filename = (f["name"] + '-' + hash[6:] + '-' + f["name"])
 
         SIZES[filename] = f["size"]
-        CACHES[filename] = cachetest2.BlockwiseBuffer(caller(client, hash), 0)
+        CACHES[filename] = block_cache.BlockwiseBuffer(caller(client, hash), 0)
 
         filepath = (pathlib.Path(root) / filename)
         filepath.touch()

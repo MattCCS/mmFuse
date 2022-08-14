@@ -32,8 +32,7 @@ sys.path.append("/Users/matt/home/Repos/Mine/MediaMan")
 
 from mediaman.core import api  # noqa
 import mediaman.core.policy  # noqa
-import cachetest  # noqa
-import cachetest2  # noqa
+import block_cache  # noqa
 import functools  # noqa
 
 
@@ -305,7 +304,7 @@ def prep_mountpoint(root, service, hash=None, fuzzy=None):
     for f in result:
         hash = f["hashes"][0]
         SIZES[hash] = f["size"]
-        CACHES[hash] = cachetest2.BlockwiseBuffer(caller(client, hash), 0)
+        CACHES[hash] = block_cache.BlockwiseBuffer(caller(client, hash), 0)
 
         filepath = (pathlib.Path(root) / f["name"])
         filepath.touch()

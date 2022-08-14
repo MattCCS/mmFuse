@@ -5,8 +5,9 @@ import os
 import tempfile
 import typing
 
-from FUSE.backends import mmbackend
-from FUSE.backends import osbackend
+from FUSE.backends import mmbackend, osbackend
+from FUSE.errors import readonly, deny, notreal
+from FUSE.fuse_clients.abstract import AbstractReadOnlyFuseClient
 
 
 FAKE_FILE_DESCRIPTOR = 0
@@ -21,16 +22,7 @@ QUICKLOOK_PROCESSES = {
 }
 
 
-def readonly():
-    raise Exception(errno.EROFS)
-
-def deny():
-    raise Exception(errno.EACCES)
-
-def notreal():
-    raise Exception(errno.ENOENT)
-
-
+# TODO: satisfy the interface of AbstractReadOnlyFuseClient
 class StubBackend:
     def has(self, path):
         return path in ("/", "/fake.txt")
@@ -51,6 +43,7 @@ class StubBackend:
         notreal()
 
 
+# TODO: satisfy the interface of AbstractReadOnlyFuseClient
 class StaticFlatBackend:
     def __init__(self, files):
         self._files = dict(files)
@@ -81,119 +74,16 @@ class StaticFlatBackend:
         notreal()
 
 
-class AbstractReadOnlyPassthrough(abc.ABC):
-
-    @abc.abstractmethod
-    def verify_procname(self, procname):      raise NotImplementedError()  # noqa
-
-    @abc.abstractmethod
-    def access(self, path, mode):             raise NotImplementedError()  # noqa
-
-    @abc.abstractmethod
-    def getattr(self, path, fh=None):         raise NotImplementedError()  # noqa
-
-    @abc.abstractmethod
-    def readdir(self, path, fh):              raise NotImplementedError()  # noqa
-
-    @abc.abstractmethod
-    def readlink(self, path):                 raise NotImplementedError()  # noqa
-
-    @abc.abstractmethod
-    def statfs(self, path):                   raise NotImplementedError()  # noqa
-
-    @abc.abstractmethod
-    def open(self, path, flags):              raise NotImplementedError()  # noqa
-
-    @abc.abstractmethod
-    def read(self, path, length, offset, fh): raise NotImplementedError()  # noqa
-
-    def destroy(self, path):
-        print(f"destroy {path}")
-        readonly()
-
-    def chmod(self, path, mode):
-        print(f"chmod {path}")
-        readonly()
-
-    def chown(self, path, uid, gid):
-        print(f"chown {path}")
-        readonly()
-
-    def mknod(self, path, mode, dev):
-        print(f"mknod {path}")
-        readonly()
-
-    def rmdir(self, path):
-        print(f"rmdir {path}")
-        readonly()
-
-    def mkdir(self, path, mode):
-        print(f"mkdir {path}")
-        readonly()
-
-    def unlink(self, path):
-        print(f"unlink {path}")
-        readonly()
-
-    def symlink(self, target, name):
-        print(f"symlink {target}")
-        readonly()
-
-    def rename(self, old, new):
-        print(f"rename {old}")
-        readonly()
-
-    def link(self, target, name):
-        print(f"link {target}")
-        readonly()
-
-    def utimens(self, path, times=None):
-        print(f"utimens {path}")
-        readonly()
-
-    def create(self, path, mode, fi=None):
-        print(f"create {path}")
-        readonly()
-
-    def write(self, path, buf, offset, fh):
-        print(f"write {path}")
-        readonly()
-
-    def truncate(self, path, length, fh=None):
-        print(f"truncate {path}")
-        readonly()
-
-    def flush(self, path, fh):
-        """
-        NOTE: OS will call [open > flush > release] even to read a file.
-        """
-        print(f"flush {path}")
-        pass
-
-    def release(self, path, fh):
-        """
-        NOTE: OS will call [open > flush > release] even to read a file.
-        """
-        print(f"release {path}")
-        pass
-
-    def fsync(self, path, fdatasync, fh):
-        print(f"fsync {path}")
-        # readonly()
-        pass  # iTunes doesn't respect read-only files.
-
-
-class ReadOnlyPassthrough(AbstractReadOnlyPassthrough):
+class ReadOnlyPassthrough(AbstractReadOnlyFuseClient):
     def __init__(self, root=None, mediaman=False, filesystem_image_mm_hash=None):
         if root:
             self.backend = osbackend.ReadOnlyOSBackend(root)
         elif mediaman:
-            self.backend = mmbackend.FlatMMBackend()
+            self.backend = mmbackend.ReadOnlyFlatMMBackend()
         elif filesystem_image_mm_hash:
             self.backend = mmbackend.ReadOnlyPredefinedMMBackend(filesystem_image_mm_hash=filesystem_image_mm_hash)
         else:
             self.backend = StaticFlatBackend({"a.txt": b"hi", "b.txt": b"ho!", "c.txt": b"how do you do?"})
-
 
     def verify_procname(self, procname):
         pass
@@ -206,17 +96,17 @@ class ReadOnlyPassthrough(AbstractReadOnlyPassthrough):
 
     def getattr(self, path, fh=None):
         if not self.backend.has(path):
-            return notreal()
+            notreal()
         if self.backend.is_dir(path):
             return {
-                'st_atime': 0,
-                'st_ctime': 0,
-                'st_mtime': 0,
-                'st_nlink': 1,
-                'st_uid': 0,  # orig 501
-                'st_gid': 0,  # orig 20
-                'st_mode': READ_ONLY_FOLDER_MODE,
-                'st_size': FAKE_FOLDER_SIZE,
+                "st_atime": 0,
+                "st_ctime": 0,
+                "st_mtime": 0,
+                "st_nlink": 1,
+                "st_uid": 0,  # orig 501
+                "st_gid": 0,  # orig 20
+                "st_mode": READ_ONLY_FOLDER_MODE,
+                "st_size": FAKE_FOLDER_SIZE,
             }
         else:
             return {
@@ -233,7 +123,7 @@ class ReadOnlyPassthrough(AbstractReadOnlyPassthrough):
     def readdir(self, path, fh):
         if not self.backend.has(path):
             notreal()
-        dirents = ['.', '..']
+        dirents = [".", ".."]
         return dirents + self.backend.list(path)
 
     def readlink(self, path):
@@ -242,9 +132,9 @@ class ReadOnlyPassthrough(AbstractReadOnlyPassthrough):
     def statfs(self, path):
         stv = os.statvfs(path)
         out = dict((key, getattr(stv, key)) for key in (
-            'f_bavail', 'f_bfree', 'f_blocks', 'f_bsize',
-            'f_favail', 'f_ffree', 'f_files', 'f_flag',
-            'f_frsize', 'f_namemax'))
+            "f_bavail", "f_bfree", "f_blocks", "f_bsize",
+            "f_favail", "f_ffree", "f_files", "f_flag",
+            "f_frsize", "f_namemax"))
         out["f_flag"] |= os.ST_RDONLY  # read-only
         # out["f_frsize"] = 2**20
         return out

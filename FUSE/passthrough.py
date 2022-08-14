@@ -13,8 +13,7 @@ import pathlib
 # sys.path.append(os.environ.get("MMCONFIG", ""))
 
 from mediaman.core import api  # noqa
-import cachetest  # noqa
-import cachetest2  # noqa
+import block_cache  # noqa
 import functools  # noqa
 
 
@@ -239,8 +238,7 @@ def prep_mountpoint(root, service):
 
     for f in result:
         SIZES[f["name"]] = f["size"]
-        # CACHES[f["name"]] = cachetest.DumbBytewiseBuffer(caller(service, f["name"]), 10_000_000)
-        CACHES[f["name"]] = cachetest2.BlockwiseBuffer(caller(service, f["name"]), 0)
+        CACHES[f["name"]] = block_cache.BlockwiseBuffer(caller(service, f["name"]), 0)
         with open(str(pathlib.Path(root) / f["name"]), "wb") as outfile:
             pass
     print(SIZES)
@@ -260,7 +258,7 @@ def prep_mountpoint(root, service):
     #         dname = f'{service_name}>{f["name"]}'
     #         SIZES[dname] = f["size"]
     #         # CACHES[dname] = cachetest.DumbBytewiseBuffer(caller(service, fname), 10_000_000)
-    #         CACHES[dname] = cachetest2.BlockwiseBuffer(caller(service_name, fname), 0)
+    #         CACHES[dname] = block_cache.BlockwiseBuffer(caller(service_name, fname), 0)
     #         with open(str(pathlib.Path(root) / dname), "wb") as outfile:
     #             pass
     # print(SIZES)
