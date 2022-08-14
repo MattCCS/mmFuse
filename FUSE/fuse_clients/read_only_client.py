@@ -1,11 +1,10 @@
 
 import abc
-import errno
 import os
 import tempfile
 import typing
 
-from FUSE.backends import mmbackend, osbackend
+from FUSE.backends import mmbackend, osbackend, static
 from FUSE.errors import readonly, deny, notreal
 from FUSE.fuse_clients.abstract import AbstractReadOnlyFuseClient
 
@@ -22,59 +21,7 @@ QUICKLOOK_PROCESSES = {
 }
 
 
-# TODO: satisfy the interface of AbstractReadOnlyFuseClient
-class StubBackend:
-    def has(self, path):
-        return path in ("/", "/fake.txt")
-
-    def list(self, path):
-        if path == "/":
-            return ["fake.txt"]
-        deny()
-
-    def size(self, path):
-        if path == "fake.txt":
-            return 100
-        notreal()
-
-    def read(self, path, length, offset):
-        if path == "fake.txt":
-            return (b"X" * 100)[offset:][:length]
-        notreal()
-
-
-# TODO: satisfy the interface of AbstractReadOnlyFuseClient
-class StaticFlatBackend:
-    def __init__(self, files):
-        self._files = dict(files)
-
-    def has(self, path):
-        path = path.lstrip("/")
-        return path == "" or path in self._files
-
-    def is_dir(self, path):
-        return path == "/"
-
-    def list(self, path):
-        path = path.lstrip("/")
-        if path == "":
-            return list(self._files.keys())
-        deny()
-
-    def size(self, path):
-        path = path.lstrip("/")
-        if path in self._files:
-            return len(self._files[path])
-        notreal()
-
-    def read(self, path, length, offset):
-        path = path.lstrip("/")
-        if path in self._files:
-            return self._files[path][offset:][:length]
-        notreal()
-
-
-class ReadOnlyPassthrough(AbstractReadOnlyFuseClient):
+class ReadOnlyFuseClient(AbstractReadOnlyFuseClient):
     def __init__(self, root=None, mediaman=False, filesystem_image_mm_hash=None):
         if root:
             self.backend = osbackend.ReadOnlyOSBackend(root)
@@ -83,7 +30,7 @@ class ReadOnlyPassthrough(AbstractReadOnlyFuseClient):
         elif filesystem_image_mm_hash:
             self.backend = mmbackend.ReadOnlyPredefinedMMBackend(filesystem_image_mm_hash=filesystem_image_mm_hash)
         else:
-            self.backend = StaticFlatBackend({"a.txt": b"hi", "b.txt": b"ho!", "c.txt": b"how do you do?"})
+            self.backend = static.StaticFlatBackend({"a.txt": b"hi", "b.txt": b"ho!", "c.txt": b"how do you do?"})
 
     def verify_procname(self, procname):
         pass

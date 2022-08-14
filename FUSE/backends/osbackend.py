@@ -6,18 +6,7 @@ import pathlib
 
 from FUSE.backends.abstract import AbstractReadOnlyBackend
 from FUSE.caches import block_cache
-
-
-def readonly():
-    raise Exception(errno.EROFS)
-
-
-def deny():
-    raise Exception(errno.EACCES)
-
-
-def notreal():
-    raise Exception(errno.ENOENT)
+from FUSE.errors import notreal
 
 
 class ReadOnlyOSBackend(AbstractReadOnlyBackend):

@@ -11,7 +11,7 @@ import mediaman.core.api
 
 from FUSE.backends.abstract import AbstractReadOnlyBackend
 from FUSE.caches import block_cache
-from FUSE.errors import readonly, deny, notreal
+from FUSE.errors import deny, notreal
 
 
 class ReadOnlyPredefinedMMBackend(AbstractReadOnlyBackend):

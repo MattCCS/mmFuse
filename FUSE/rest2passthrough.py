@@ -9,9 +9,7 @@ import socket
 from flask import Flask, request
 import msgpack
 
-from FUSE.fuse_clients import passthough
-from FUSE.fuse_clients import read_only_passthrough
-from FUSE.fuse_clients import tempfile_passthrough
+from FUSE.fuse_clients import read_only_client
 
 
 FUSE_CLIENT = None
@@ -110,7 +108,7 @@ def main():
 
     args = parse_args()
 
-    FUSE_CLIENT = read_only_passthrough.ReadOnlyPassthrough(
+    FUSE_CLIENT = read_only_client.ReadOnlyFuseClient(
         root=args.passthrough,
         mediaman=args.mediaman,
         filesystem_image_mm_hash=args.filesystem_image_mm_hash,
