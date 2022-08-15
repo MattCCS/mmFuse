@@ -110,7 +110,7 @@ class ReadOnlyPredefinedMMBackend(AbstractReadOnlyBackend):
 
 class ReadOnlyFlatMMBackend(AbstractReadOnlyBackend):
     def __init__(self, service_selector="local"):
-        service_selector = "sam"
+        # service_selector = "sam"
         self._service_selector = service_selector
         logging.debug(f"{service_selector=}")
 
@@ -118,7 +118,7 @@ class ReadOnlyFlatMMBackend(AbstractReadOnlyBackend):
         # self._list_result = mediaman.core.api.run_list(service_selector=self._service_selector)
 
         # search test:
-        self._list_result = list(mediaman.core.api.run_fuzzy("png", service_selector=self._service_selector))[0][1]
+        self._list_result = list(mediaman.core.api.run_fuzzy("mp4", service_selector=self._service_selector))[0][1]
 
         self._files = {
             f["name"] : {

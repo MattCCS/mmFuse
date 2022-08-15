@@ -19,13 +19,15 @@ QUICKLOOK_PROCESSES = {
 
 
 class ReadOnlyFuseClient(AbstractReadOnlyFuseClient):
-    def __init__(self, root=None, mediaman=False, filesystem_image_mm_hash=None):
+    def __init__(self, root=None, mediaman=False, filesystem_image_mm_hash=None, hashes=None):
         if root:
             self.backend = osbackend.ReadOnlyOSBackend(root)
         elif mediaman:
             self.backend = mmbackend.ReadOnlyFlatMMBackend()
         elif filesystem_image_mm_hash:
             self.backend = mmbackend.ReadOnlyPredefinedMMBackend(filesystem_image_mm_hash=filesystem_image_mm_hash)
+        # elif hashes:
+        #     self.backend = mmbackend.ReadOnly
         else:
             self.backend = static.StaticFlatBackend({"a.txt": b"hi", "b.txt": b"ho!", "c.txt": b"how do you do?"})
 

@@ -46,8 +46,10 @@ class Fuse2Rest(fuse.Operations):
         "unlink", "utimens", "write",
     )
 
-    def __init__(self, uri):
+    def __init__(self, uri, assume_static=False):
         self._uri = uri.rstrip("/")
+        self.assume_static = assume_static
+
         # self._socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         # self._socket.connect(("", int(self._uri.split(":")[-1])))
 
@@ -60,11 +62,20 @@ class Fuse2Rest(fuse.Operations):
         pid = fuse.fuse_get_context()[-1]
         proc = psutil.Process(pid)
         procname = proc.name()
+
+        # Avoid caching data calls
+        # TODO(mcotton): FUSE mount should ideally not guess what is or isn't cachable
+        if self.assume_static and funcname in {"getattr", "statfs", "readdir"}:
+            cached_call = self._call_cached
+        else:
+            cached_call = self._call
+
+        return cached_call(procname, funcname, *args, **kwargs)
+
+    @functools.cache
+    def _call_cached(self, procname, funcname, *args, **kwargs):
         return self._call(procname, funcname, *args, **kwargs)
 
-    # TODO(mcotton): trivial, but should avoid storing data
-    # TODO(mcotton): FUSE mount should ideally not guess what is or isn't cachable
-    @functools.cache
     def _call(self, procname, funcname, *args, **kwargs):
         t0 = time.perf_counter()
         thread_id = threading.get_ident()
@@ -116,6 +127,10 @@ def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("mountpoint")
     parser.add_argument("uri")
+
+    parser.add_argument("--assume-static", default=False, action="store_true",
+        help="Whether to assume the underlying filesystem will never change, and to cache repsonses")
+
     return parser.parse_args()
 
 
@@ -128,7 +143,7 @@ def main():
     signal.signal(signal.SIGINT, signal.SIG_DFL)  # Restores CTRL+C functionality
 
     fuse.FUSE(
-        Fuse2Rest(args.uri),
+        Fuse2Rest(args.uri, assume_static=args.assume_static),
         args.mountpoint,
         nothreads=True,  # True
         foreground=True,  # `False` hangs forever and locks fuse...

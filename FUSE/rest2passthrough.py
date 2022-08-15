@@ -107,6 +107,7 @@ def parse_args():
     parser.add_argument("-p", "--passthrough", default=None, help="Path to the passthrough folder")
     parser.add_argument("-m", "--mediaman", default=False, action="store_true")
     parser.add_argument("-i", "--filesystem_image_mm_hash", default=None, help="MediaMan hash of a JSON file describing a filesystem")
+    # parser.add_argument("-h", "--hashes", nargs="+", type=list, help="MM hashes to load")
     return parser.parse_args()
 
 
