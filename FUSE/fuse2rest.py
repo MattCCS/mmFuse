@@ -6,6 +6,7 @@ This is an attempt at mapping FUSE API calls to REST API calls.
 
 import argparse
 import base64
+import functools
 import logging
 import pathlib
 import psutil
@@ -53,16 +54,21 @@ class Fuse2Rest(fuse.Operations):
         self._session = requests.Session()
 
         for funcname in Fuse2Rest.FUNC_NAMES:
-            setattr(self, funcname, self._wrapper(funcname, self._session))
+            setattr(self, funcname, self._wrapper(funcname))
 
-    def _api(self, funcname, session, *args, **kwargs):
-        t0 = time.perf_counter()
-        thread_id = threading.get_ident()
-
+    def _api(self, funcname, *args, **kwargs):
         pid = fuse.fuse_get_context()[-1]
-        print(f"Starting {thread_id=}, {pid=}")
         proc = psutil.Process(pid)
         procname = proc.name()
+        return self._call(procname, funcname, *args, **kwargs)
+
+    # TODO(mcotton): trivial, but should avoid storing data
+    # TODO(mcotton): FUSE mount should ideally not guess what is or isn't cachable
+    @functools.cache
+    def _call(self, procname, funcname, *args, **kwargs):
+        t0 = time.perf_counter()
+        thread_id = threading.get_ident()
+        print(f"Starting {thread_id=}, {procname=}")
 
         q = pack_q(funcname, args, kwargs, procname)
 
@@ -87,7 +93,7 @@ class Fuse2Rest(fuse.Operations):
             # data = urllib.parse.urlencode({"q": q}).encode()
             # req = urllib.request.Request(url, data=data)
             # result = msgpack.unpackb(urllib3.request.urlopen(req).read())
-            req = session.post(url, data={"q": q}, stream=True)
+            req = self._session.post(url, data={"q": q}, stream=True)
             result = msgpack.unpackb(req.raw.read())
 
         t1 = time.perf_counter()
@@ -100,9 +106,9 @@ class Fuse2Rest(fuse.Operations):
 
         return result["result"]
 
-    def _wrapper(self, funcname, session):
+    def _wrapper(self, funcname):
         def f(*args, **kwargs):
-            return self._api(funcname, session, *args, **kwargs)
+            return self._api(funcname, *args, **kwargs)
         return f
 
 
