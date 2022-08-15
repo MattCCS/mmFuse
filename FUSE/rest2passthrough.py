@@ -30,13 +30,20 @@ def unpack_q(q):
 def call(procname, funcname, *args, **kwargs):
     global FUSE_CLIENT
     FUSE_CLIENT.verify_procname(procname)
-    return getattr(FUSE_CLIENT, funcname)(*args, **kwargs)
+    try:
+        result = getattr(FUSE_CLIENT, funcname)(*args, **kwargs)
+        return {"result": result, "error": None}
+    except Exception as e:
+        print(repr(e))
+        return {"result": None, "error": e.args[0]}
 
 
 # TODO(mcotton): Clear this cache on `refresh`, once that concept exists.
 @functools.cache
 def call_cached(procname, funcname, *args, **kwargs):
     print(f"Caching: {procname=}, {funcname=}, {args=}, {kwargs=}")
+    # NOTE(mcotton): You can't cache exceptions!  So we have to return them as data.
+    # NOTE(mcotton): This might be a terrible idea, if we legit have a temporary issue.
     return call(procname, funcname, *args, **kwargs)
 
 
@@ -52,16 +59,7 @@ def callback(funcname):
         print(f"Fresh: {procname=}, {funcname=}, {args=}, {kwargs=}")
         cached_call = lambda: call(procname, funcname, *args, **kwargs)
 
-    try:
-        result = cached_call()
-        out = {"result": result, "error": None}
-    except Exception as e:
-        # TODO: set explicit value on custom exception object
-        print(repr(e))
-        # import traceback
-        # traceback.print_exc()
-        out = {"result": None, "error": e.args[0]}
-
+    out = cached_call()
     return msgpack.packb(out)
 
 
