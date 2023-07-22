@@ -39,10 +39,11 @@ class ReadOnlyOSBackend:
             self._files[path] = {
                 "type": type,
                 "size": size,
-                "buffer": cachetest2.BlockwiseBuffer(
+                # "reader": functools.partial(self._read, realpath),
+                "reader": cachetest2.BlockwiseBuffer(
                     size=size,
                     source=functools.partial(self._read, realpath)
-                )
+                ).read
             }
 
         # print(self._files.keys())
@@ -81,8 +82,8 @@ class ReadOnlyOSBackend:
         print(f"read {(path, length, offset)}")
         # path = path.lstrip("/")
         if path in self._files:
-            ref = self._files[path]["buffer"]
-            return ref.read(offset=offset, length=length)
+            reader = self._files[path]["reader"]
+            return reader(offset=offset, length=length)
         notreal()
 
     def _read(self, path, length, offset):

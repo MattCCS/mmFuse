@@ -17,6 +17,9 @@ import fuse
 import msgpack
 import requests
 
+# cheating, testing...
+# from FUSE import rest2passthrough
+
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 # handler = logging.FileHandler(f"{__name__}.log")
@@ -48,6 +51,9 @@ class Fuse2Rest(fuse.Operations):
         # self._socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         # self._socket.connect(("", int(self._uri.split(":")[-1])))
 
+        # cheating to test speed...
+        # rest2passthrough.prepare_fuse_client(passthrough="/Volumes/Samsung_T5/Photos/2015-2017 Nat's Macbook Pro/Movies/")
+
         for funcname in Fuse2Rest.FUNC_NAMES:
             setattr(self, funcname, self._wrapper(funcname))
 
@@ -55,6 +61,14 @@ class Fuse2Rest(fuse.Operations):
         pid = fuse.fuse_get_context()[-1]
         proc = psutil.Process(pid)
         procname = proc.name()
+
+        # import errno
+        # if procname == "com.apple.quicklook.ThumbnailsAgent":
+        #     raise fuse.FuseOSError(errno.EACCES)
+        # if procname == "QuickLookSatellite":
+        #     raise fuse.FuseOSError(errno.EACCES)
+        # if procname == "QuickLookUIService":
+        #     raise fuse.FuseOSError(errno.EACCES)
 
         q = pack_q(funcname, args, kwargs, procname)
 
@@ -71,6 +85,7 @@ class Fuse2Rest(fuse.Operations):
         #     # print("unpacked")
         #     self._socket.close()
 
+        # Fastest observed speed with `requests`: 37.8 MB/s (300 Mbps) off a Samsung T5, packing and unpacking
         HTTP = True
         if HTTP:
             url = self._uri + "/" + funcname
@@ -82,6 +97,11 @@ class Fuse2Rest(fuse.Operations):
             req = requests.post(url, data={"q": q}, stream=True)
             result = msgpack.unpackb(req.raw.read())
 
+        # Fastest observed speed with Python: 50 MB/s (400 Mbps) off a Samsung T5, packing and unpacking
+        # IMPORT = True
+        # if IMPORT:
+        #     result = msgpack.unpackb(rest2passthrough.callback(q))
+
         if result["error"]:
             print(result["error"])
             raise fuse.FuseOSError(result["error"])
@@ -90,6 +110,14 @@ class Fuse2Rest(fuse.Operations):
     def _wrapper(self, funcname):
         def f(*args, **kwargs):
             return self._api(funcname, *args, **kwargs)
+
+        # macOS Finder has some horrible behavior where, when reading ANY file, it will
+        # call getattr on EVERY file in a folder.  This puts a stop to that (under the
+        # assumption that the underlying filesystem is static.)
+        # TODO: move this so the calling process is considered -- the passthrough might want to lie.
+        import functools
+        if funcname == "getattr":
+            f = functools.cache(f)
         return f
 
 
@@ -108,7 +136,7 @@ def main():
     fuse.FUSE(
         Fuse2Rest(args.uri),
         args.mountpoint,
-        nothreads=True,
+        nothreads=False,
         foreground=True,
         volname=volname,
 

@@ -20,6 +20,10 @@ QUICKLOOK_PROCESSES = {
     "quicklookd",
 }
 
+THUMBNAIL_PROCESSES = {
+    "com.apple.quicklook.ThumbnailsAgent",
+}
+
 
 def readonly():
     raise Exception(errno.EROFS)
@@ -181,16 +185,22 @@ class AbstractReadOnlyPassthrough(abc.ABC):
 
 
 class ReadOnlyPassthrough(AbstractReadOnlyPassthrough):
-    def __init__(self, root):
-        self.root = root
+    def __init__(self, backend):
+        # self.root = root
         # self.backend = StaticFlatBackend({"a.txt": b"hi", "b.txt": b"ho!", "c.txt": b"how do you do?"})
         # self.backend = mmbackend.FlatMMBackend()
-        self.backend = osbackend.ReadOnlyOSBackend(self.root)
+        self.backend = backend
 
     def verify_procname(self, procname):
         pass
         # if procname in QUICKLOOK_PROCESSES:
         #     deny()
+        if procname == "QuickLookUIService":
+            deny()  # Allows hitting Spacebar to QuickLook files (will play entire media)
+        if procname == "QuickLookSatellite":
+            deny()  # Shows a small static render in the Preview pane (does NOT play)
+        if procname in THUMBNAIL_PROCESSES:
+            deny()  # Shows a thumbnail on the file icon (called for every file eagerly)
 
     def access(self, path, mode):
         if not self.backend.has(path):
@@ -198,7 +208,7 @@ class ReadOnlyPassthrough(AbstractReadOnlyPassthrough):
 
     def getattr(self, path, fh=None):
         if not self.backend.has(path):
-            return notreal()
+            notreal()
         if self.backend.is_dir(path):
             return {
                 'st_atime': 0,

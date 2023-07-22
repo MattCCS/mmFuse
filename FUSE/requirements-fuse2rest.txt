@@ -2,3 +2,4 @@ psutil
 fusepy
 msgpack
 
+requests  # temporary...

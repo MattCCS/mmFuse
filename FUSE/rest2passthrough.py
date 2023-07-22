@@ -8,10 +8,13 @@ import socket
 
 from flask import Flask, request
 import msgpack
+import httplib2shim  # NOTE: fixes non-thread-safe httplib2 problems caused by Google's API library
+httplib2shim.patch()
 
 from FUSE.fuse_clients import passthough
 from FUSE.fuse_clients import read_only_passthrough
 from FUSE.fuse_clients import tempfile_passthrough
+from FUSE.backends import osbackend, mmbackend
 
 
 FUSE_CLIENT = None
@@ -35,10 +38,15 @@ def call(procname, funcname, *args, **kwargs):
 
 
 @app.route('/<funcname>', methods=["POST"])
-def callback(funcname):
+def view_callback(funcname):
+    q = request.form["q"]
+    return callback(q)
+
+
+def callback(q):
     global FUSE_CLIENT
 
-    (_funcname, args, kwargs, procname) = unpack_q(request.form["q"])
+    (funcname, args, kwargs, procname) = unpack_q(q)
     # print(f"({procname}) {funcname} {args[:1]}")
     if procname == "ls":
         print(f"({procname}) {funcname} {args}")
@@ -100,20 +108,30 @@ def parse_args():
     parser = argparse.ArgumentParser()
     # parser.add_argument("client", choices=["passthrough", "mediaman"])
     parser.add_argument("-p", "--passthrough", default=None, help="Path to the passthrough folder")
-    parser.add_argument("-m", "--mediman", default=False, action="store_true")
+    parser.add_argument("-m", "--mediaman", default=None, help="MediaMan service name")
     return parser.parse_args()
 
 
-def main():
+def prepare_fuse_client(passthrough=None, mediaman=None):
     global FUSE_CLIENT
 
-    args = parse_args()
-
-    if args.passthrough:
-        # FUSE_CLIENT = passthough.Passthrough(args.passthrough)
-        FUSE_CLIENT = read_only_passthrough.ReadOnlyPassthrough(args.passthrough)
+    if passthrough:
+        backend = osbackend.ReadOnlyOSBackend(root=passthrough)
+    elif mediaman:
+        backend = mmbackend.FlatMMBackend(service_selector=mediaman)
     else:
         raise NotImplementedError()
+
+    FUSE_CLIENT = read_only_passthrough.ReadOnlyPassthrough(backend)
+
+
+def main():
+    args = parse_args()
+
+    prepare_fuse_client(
+        passthrough=args.passthrough,
+        mediaman=args.mediaman,
+    )
 
     app.run(threaded=True, port=4001, host="0.0.0.0", debug=True)
     # socket_loop()
