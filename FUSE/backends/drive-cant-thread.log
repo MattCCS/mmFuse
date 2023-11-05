@@ -1,0 +1,86 @@
+Exception in thread Thread-11 (background_load):
+Traceback (most recent call last):
+  File "/Users/matt/.pyenv/versions/3.10.4/lib/python3.10/threading.py", line 1009, in _bootstrap_inner
+Exception in thread Thread-10 (background_load):
+Traceback (most recent call last):
+  File "/Users/matt/.pyenv/versions/3.10.4/lib/python3.10/threading.py", line 1009, in _bootstrap_inner
+    self.run()
+  File "/Users/matt/.pyenv/versions/3.10.4/lib/python3.10/threading.py", line 946, in run
+    self._target(*self._args, **self._kwargs)
+  File "/Users/matt/home/code/mine/mmFuse/FUSE/caches/block_cache.py", line 35, in background_load
+    buffer.load_async(buffer.source(offset=offset, length=length), block, blocks)
+  File "/Users/matt/home/code/mine/mmFuse/FUSE/backends/mmbackend.py", line 172, in _read
+    self.run()
+  File "/Users/matt/.pyenv/versions/3.10.4/lib/python3.10/threading.py", line 946, in run
+    return b"".join(self._service.stream_range(
+  File "/Users/matt/home/code/mine/MediaMan/mediaman/services/drive/methods.py", line 253, in stream_range
+    self._target(*self._args, **self._kwargs)
+  File "/Users/matt/home/code/mine/mmFuse/FUSE/caches/block_cache.py", line 35, in background_load
+    (download_progress, done) = media_request.next_chunk()
+  File "/Users/matt/home/code/mine/mmFuse/FUSE/venv-rest2passthrough-mediaman/lib/python3.10/site-packages/googleapiclient/_helpers.py", line 131, in positional_wrapper
+    buffer.load_async(buffer.source(offset=offset, length=length), block, blocks)
+  File "/Users/matt/home/code/mine/mmFuse/FUSE/backends/mmbackend.py", line 172, in _read
+    return wrapped(*args, **kwargs)
+  File "/Users/matt/home/code/mine/mmFuse/FUSE/venv-rest2passthrough-mediaman/lib/python3.10/site-packages/googleapiclient/http.py", line 740, in next_chunk
+    return b"".join(self._service.stream_range(
+  File "/Users/matt/home/code/mine/MediaMan/mediaman/services/drive/methods.py", line 253, in stream_range
+    resp, content = _retry_request(
+    (download_progress, done) = media_request.next_chunk()
+  File "/Users/matt/home/code/mine/mmFuse/FUSE/venv-rest2passthrough-mediaman/lib/python3.10/site-packages/googleapiclient/http.py", line 221, in _retry_request
+  File "/Users/matt/home/code/mine/mmFuse/FUSE/venv-rest2passthrough-mediaman/lib/python3.10/site-packages/googleapiclient/_helpers.py", line 131, in positional_wrapper
+    raise exception
+    return wrapped(*args, **kwargs)
+  File "/Users/matt/home/code/mine/mmFuse/FUSE/venv-rest2passthrough-mediaman/lib/python3.10/site-packages/googleapiclient/http.py", line 190, in _retry_request
+  File "/Users/matt/home/code/mine/mmFuse/FUSE/venv-rest2passthrough-mediaman/lib/python3.10/site-packages/googleapiclient/http.py", line 740, in next_chunk
+    resp, content = http.request(uri, method, *args, **kwargs)
+  File "/Users/matt/home/code/mine/mmFuse/FUSE/venv-rest2passthrough-mediaman/lib/python3.10/site-packages/oauth2client/transport.py", line 173, in new_request
+    resp, content = _retry_request(
+  File "/Users/matt/home/code/mine/mmFuse/FUSE/venv-rest2passthrough-mediaman/lib/python3.10/site-packages/googleapiclient/http.py", line 221, in _retry_request
+    raise exception
+  File "/Users/matt/home/code/mine/mmFuse/FUSE/venv-rest2passthrough-mediaman/lib/python3.10/site-packages/googleapiclient/http.py", line 190, in _retry_request
+    resp, content = request(orig_request_method, uri, method, body,
+  File "/Users/matt/home/code/mine/mmFuse/FUSE/venv-rest2passthrough-mediaman/lib/python3.10/site-packages/oauth2client/transport.py", line 280, in request
+    resp, content = http.request(uri, method, *args, **kwargs)
+  File "/Users/matt/home/code/mine/mmFuse/FUSE/venv-rest2passthrough-mediaman/lib/python3.10/site-packages/oauth2client/transport.py", line 173, in new_request
+    resp, content = request(orig_request_method, uri, method, body,
+  File "/Users/matt/home/code/mine/mmFuse/FUSE/venv-rest2passthrough-mediaman/lib/python3.10/site-packages/oauth2client/transport.py", line 280, in request
+    return http_callable(uri, method=method, body=body, headers=headers,
+  File "/Users/matt/home/code/mine/mmFuse/FUSE/venv-rest2passthrough-mediaman/lib/python3.10/site-packages/httplib2/__init__.py", line 1701, in request
+    return http_callable(uri, method=method, body=body, headers=headers,
+  File "/Users/matt/home/code/mine/mmFuse/FUSE/venv-rest2passthrough-mediaman/lib/python3.10/site-packages/httplib2/__init__.py", line 1701, in request
+    (response, content) = self._request(
+  File "/Users/matt/home/code/mine/mmFuse/FUSE/venv-rest2passthrough-mediaman/lib/python3.10/site-packages/httplib2/__init__.py", line 1421, in _request
+    (response, content) = self._request(
+  File "/Users/matt/home/code/mine/mmFuse/FUSE/venv-rest2passthrough-mediaman/lib/python3.10/site-packages/httplib2/__init__.py", line 1421, in _request
+    (response, content) = self._conn_request(conn, request_uri, method, body, headers)
+    (response, content) = self._conn_request(conn, request_uri, method, body, headers)
+  File "/Users/matt/home/code/mine/mmFuse/FUSE/venv-rest2passthrough-mediaman/lib/python3.10/site-packages/httplib2/__init__.py", line 1373, in _conn_request
+  File "/Users/matt/home/code/mine/mmFuse/FUSE/venv-rest2passthrough-mediaman/lib/python3.10/site-packages/httplib2/__init__.py", line 1373, in _conn_request
+    response = conn.getresponse()
+  File "/Users/matt/.pyenv/versions/3.10.4/lib/python3.10/http/client.py", line 1374, in getresponse
+    response = conn.getresponse()
+  File "/Users/matt/.pyenv/versions/3.10.4/lib/python3.10/http/client.py", line 1374, in getresponse
+    response.begin()
+    response.begin()
+  File "/Users/matt/.pyenv/versions/3.10.4/lib/python3.10/http/client.py", line 318, in begin
+  File "/Users/matt/.pyenv/versions/3.10.4/lib/python3.10/http/client.py", line 318, in begin
+    version, status, reason = self._read_status()
+  File "/Users/matt/.pyenv/versions/3.10.4/lib/python3.10/http/client.py", line 279, in _read_status
+    version, status, reason = self._read_status()
+  File "/Users/matt/.pyenv/versions/3.10.4/lib/python3.10/http/client.py", line 279, in _read_status
+    line = str(self.fp.readline(_MAXLINE + 1), "iso-8859-1")
+    line = str(self.fp.readline(_MAXLINE + 1), "iso-8859-1")
+  File "/Users/matt/.pyenv/versions/3.10.4/lib/python3.10/socket.py", line 705, in readinto
+  File "/Users/matt/.pyenv/versions/3.10.4/lib/python3.10/socket.py", line 705, in readinto
+    return self._sock.recv_into(b)
+  File "/Users/matt/.pyenv/versions/3.10.4/lib/python3.10/ssl.py", line 1273, in recv_into
+    return self._sock.recv_into(b)
+  File "/Users/matt/.pyenv/versions/3.10.4/lib/python3.10/ssl.py", line 1273, in recv_into
+    return self.read(nbytes, buffer)
+  File "/Users/matt/.pyenv/versions/3.10.4/lib/python3.10/ssl.py", line 1129, in read
+    return self.read(nbytes, buffer)
+  File "/Users/matt/.pyenv/versions/3.10.4/lib/python3.10/ssl.py", line 1129, in read
+    return self._sslobj.read(len, buffer)
+ssl.SSLError: [SSL: DECRYPTION_FAILED_OR_BAD_RECORD_MAC] decryption failed or bad record mac (_ssl.c:2548)
+    return self._sslobj.read(len, buffer)
+ssl.SSLError: [SSL: WRONG_VERSION_NUMBER] wrong version number (_ssl.c:2548)

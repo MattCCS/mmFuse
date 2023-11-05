@@ -23,21 +23,20 @@ class AbstractBuffer(RangeReadable):
         return self.start_absolute + len(self.buffer)
 
 
-def start_background_load(buffer, block, blocksize, blocks):
-    t = threading.Thread(target=background_load, args=(buffer, block, blocksize, blocks))
+def start_background_load(buffer, offset, length, block, blocks, delay_seconds=0):
+    t = threading.Thread(target=background_load, args=(buffer, offset, length, block, blocks, delay_seconds))
     t.start()
 
 
-def background_load(buffer, block, blocksize, blocks):
-    offset = block * blocksize
-    length = blocks * blocksize
-    print(f"[r] Async read of block {block}, blocks {blocks}")
+def background_load(buffer, offset, length, block, blocks, delay_seconds=0):
+    time.sleep(delay_seconds)
+    print(f"[r] Async read of block {block} ({offset=}), blocks {blocks} ({length=})")
     buffer.load_async(buffer.source(offset=offset, length=length), block, blocks)
 
 
 class BlockwiseBuffer(AbstractBuffer):
-    def __init__(self, source, size, end=None, blocksize=2_000_000, cache_limit=20, prefetch_blocks=2):
-        super().__init__(source, size, end=end)
+    def __init__(self, source, size, blocksize=2_000_000, cache_limit=20, prefetch_blocks=2):
+        super().__init__(source, cap=blocksize, end=size)
         self.blocksize = blocksize
         self.cache_limit = cache_limit
         self.prefetch_blocks = prefetch_blocks
@@ -47,7 +46,7 @@ class BlockwiseBuffer(AbstractBuffer):
         self.requests = set()
 
     def load_async(self, bytez, start_block, blocks):
-        print(f"[async receiving {start_block}, {blocks}]")
+        print(f"[async receiving {start_block=}, {blocks=}]")
         for idx in range(blocks):
             block = (start_block + idx)
             self.cache[block] = bytez[idx * self.blocksize:(idx + 1) * self.blocksize]
@@ -79,10 +78,30 @@ class BlockwiseBuffer(AbstractBuffer):
     def prefetch(self, offset):
         for idx in range(self.prefetch_blocks):
             next_block = (self.next_block(offset) + idx)
-            if next_block not in self.cache and next_block not in self.requests:
-                print(f"(starting background load for: {next_block})")
-                start_background_load(self, next_block, self.blocksize, 1)
-                self.requests.add(next_block)
+            if (next_block in self.cache) or (next_block in self.requests):
+                continue
+
+            blocks = 1  # NOTE(mcotton): We always request 1 block at a time.
+            offset = next_block * self.blocksize
+            length = blocks * self.blocksize
+
+            if (self.end is not None):
+                remaining = self.end - offset
+                if remaining < 0:
+                    continue
+                length = min(length, remaining)
+
+            print(f"(starting background load for: {next_block})")
+            delay_seconds = (idx + 1) * 0.5
+            start_background_load(
+                buffer=self,
+                offset=offset,
+                length=length,
+                block=next_block,
+                blocks=blocks,
+                delay_seconds=delay_seconds,
+            )
+            self.requests.add(next_block)
 
     def read(self, offset, length):
         print(self.hits)
@@ -90,34 +109,41 @@ class BlockwiseBuffer(AbstractBuffer):
         if offset < 0 or length < 0:
             raise RuntimeError("Offset and length can't be negative.")
         elif length == 0:
-            return b''
+            out = b''
 
-        if self.cached_blocks() >= self.cache_limit:
-            self.invalidate()
+        self.prefetch(offset)
 
         block = self.block(offset)
         if block not in self.cache and block not in self.requests:
-            return self.new_read(offset, length)
+            out = self.new_read(offset, length)
         elif block in self.requests:
             print(f"[ ] Waiting for pending request...")
-            self.prefetch(offset)
-            for _ in range(70):
+            for _ in range(5):
                 time.sleep(0.1)
                 if block in self.cache:
-                    return self.cache_read(offset, length)
+                    out = self.cache_read(offset, length)
             else:
                 print(f"[!] Cache took too long to populate!")
                 raise RuntimeError("cache delay")
         else:
             print(f"read (DEBUG) offset={offset}, length={length}")
-            return self.cache_read(offset, length)
+            out = self.cache_read(offset, length)
+
+        if self.cached_blocks() >= self.cache_limit:
+            self.invalidate()
+
+        return out
 
     def new_read(self, offset, length):
         print(f"new_read({offset}, {length})")
 
         block = self.block(offset)
         print(f"[r] Sync read of block {block}")
-        read = self.source(offset=block * self.blocksize, length=self.blocksize)
+        if (self.end is not None):
+            remaining = self.end - (block * self.blocksize)
+            read = self.source(offset=block * self.blocksize, length=min(self.blocksize, remaining))
+        else:
+            read = self.source(offset=block * self.blocksize, length=self.blocksize)
         self.cache[block] = read
         self.hits[block] = time.monotonic()
 
@@ -147,6 +173,14 @@ class BlockwiseBuffer(AbstractBuffer):
 
         out = read[offset % self.blocksize:offset % self.blocksize + length]
         have = len(out)
+
+        # TODO(mcotton): Consider this carefully.
+        # if have <= length <= self.blocksize:
+        #     print(f"cache_read empty block")
+        #     # We have cached < blocksize, or even 0!
+        #     # If they asked for something that would be encapsulated
+        #     # in a single cache read, there's no reason to recurse or prefetch.
+        #     return out
         if length < have:
             raise RuntimeError("Grabbed too much data")
         elif length == have:

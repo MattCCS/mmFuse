@@ -4,6 +4,12 @@ import os
 from FUSE.backends import mmbackend, osbackend, static
 from FUSE.errors import readonly, deny, notreal
 from FUSE.fuse_clients.abstract import AbstractReadOnlyFuseClient
+from FUSE.fuse_clients.passthough_client import (
+    REQUIRED_FOR_MUSIC,
+    REQUIRED_FOR_THUMBNAILS,
+    REQUIRED_FOR_QUICKLOOK,
+    REQUIRED_FOR_FINDER,
+)
 
 
 FAKE_FILE_DESCRIPTOR = 0
@@ -17,24 +23,58 @@ QUICKLOOK_PROCESSES = {
     "quicklookd",
 }
 
+FINDER_COPY_PASTE = {
+    "Finder",
+    "DesktopServicesH",
+}
+
+THUMBNAILS = {
+    "com.apple.quicklook.ThumbnailsAgent",
+}
+
+QUICKTIME = {
+    "QuickTime Player",
+}
+
+PREVIEW = {
+    "Preview",
+}
+
+ZSH_TAB_COMPLETION = {
+    "zsh",
+}
+
+ALLOW_ALL = False
+ALLOWED = frozenset(["ls", "head"]) | REQUIRED_FOR_MUSIC | FINDER_COPY_PASTE | THUMBNAILS | QUICKTIME | PREVIEW | ZSH_TAB_COMPLETION
+
+ALLOW_AFTER_FINDER_HAS_READ = {
+    "QuickLookSatellite",
+}
+
 
 class ReadOnlyFuseClient(AbstractReadOnlyFuseClient):
-    def __init__(self, root=None, mediaman=False, filesystem_image_mm_hash=None, hashes=None):
+    def __init__(self, root=None, mediaman=False, filesystem_image_mm_hash=None, filesystem_image=None, service_selector=None, hashes=None):
         if root:
             self.backend = osbackend.ReadOnlyOSBackend(root)
         elif mediaman:
-            self.backend = mmbackend.ReadOnlyFlatMMBackend()
+            self.backend = mmbackend.ReadOnlyFlatMMBackend(service_selector=service_selector)
         elif filesystem_image_mm_hash:
-            self.backend = mmbackend.ReadOnlyPredefinedMMBackend(filesystem_image_mm_hash=filesystem_image_mm_hash)
+            self.backend = mmbackend.ReadOnlyPredefinedMMBackend(filesystem_image_mm_hash=filesystem_image_mm_hash, service_selector=service_selector)
+        elif filesystem_image:
+            self.backend = mmbackend.ReadOnlyPredefinedMMBackend(filesystem_image=filesystem_image, service_selector=service_selector)
         # elif hashes:
         #     self.backend = mmbackend.ReadOnly
         else:
             self.backend = static.StaticFlatBackend({"a.txt": b"hi", "b.txt": b"ho!", "c.txt": b"how do you do?"})
 
-    def verify_procname(self, procname):
-        pass
-        # if procname in QUICKLOOK_PROCESSES:
-        #     deny()
+        self.finder_has_read = set()
+
+    def verify_procname(self, procname, path):
+        if path in self.finder_has_read and procname in ALLOW_AFTER_FINDER_HAS_READ:
+            print(f"[*] Allowing {procname} on {repr(path)} because Finder has already read (user is actively previewing).")
+            return
+        if not ALLOW_ALL and procname not in ALLOWED:
+            deny()
 
     def access(self, path, mode):
         if not self.backend.has(path):
@@ -90,9 +130,11 @@ class ReadOnlyFuseClient(AbstractReadOnlyFuseClient):
             notreal()
         return FAKE_FILE_DESCRIPTOR
 
-    def read(self, path, length, offset, fh):
+    def read(self, path, length, offset, fh, procname):
         """
         NOTE: OS will try to read a file created via open().
         """
         print(path, length, offset)
+        if procname == "Finder":
+            self.finder_has_read.add(path)
         return self.backend.read(path, length, offset)

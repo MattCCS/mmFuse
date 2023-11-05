@@ -7,7 +7,7 @@ import pathlib
 import sys
 
 sys.path.append(os.environ.get("MMSRC", ""))
-import mediaman.core.api
+from mediaman.core import policy
 
 from FUSE.backends.abstract import AbstractReadOnlyBackend
 from FUSE.caches import block_cache
@@ -15,18 +15,22 @@ from FUSE.errors import deny, notreal
 
 
 (logger := logging.getLogger(__name__)).setLevel(logging.INFO)
+logging.getLogger("mattccs.mediaman").setLevel(logging.INFO)
 
 
 class ReadOnlyPredefinedMMBackend(AbstractReadOnlyBackend):
-    def __init__(self, filesystem_image_mm_hash="xxh64:28958e05597643fb", service_selector="local"):
+    def __init__(self, filesystem_image=None, filesystem_image_mm_hash="xxh64:28958e05597643fb", service_selector=None):
         self._service_selector = service_selector
+        self._service = policy.load_client(service_selector=self._service_selector)
 
-        result = mediaman.core.api.run_stream(
-            root=pathlib.Path(),
-            file_name=filesystem_image_mm_hash,
-            service_selector=self._service_selector,
-        )
-        self._filesystem = json.loads(list(result)[0])
+        if filesystem_image:
+            self._filesystem = json.loads(filesystem_image)
+        else:
+            result = self._service.stream(
+                root=pathlib.Path(),
+                identifier=filesystem_image_mm_hash,
+            )
+            self._filesystem = json.loads(list(result)[0])
         self._caches = {}  # hash -> func()
 
         logging.info("ready")
@@ -97,10 +101,9 @@ class ReadOnlyPredefinedMMBackend(AbstractReadOnlyBackend):
     def _read(self, hash, length, offset):
         logging.debug(f"_read ({hash}, {length}, {offset})")
         try:
-            return b"".join(mediaman.core.api.run_stream_range(
-                service_selector=self._service_selector,
+            return b"".join(self._service.stream_range(
                 root=pathlib.Path(),
-                file_name=hash,
+                identifier=hash,
                 offset=offset,
                 length=length,
             ))
@@ -113,12 +116,14 @@ class ReadOnlyFlatMMBackend(AbstractReadOnlyBackend):
         # service_selector = "sam"
         self._service_selector = service_selector
         logging.debug(f"{service_selector=}")
+        self._service = policy.load_client(service_selector=None)
 
         # full list:
         # self._list_result = mediaman.core.api.run_list(service_selector=self._service_selector)
 
         # search test:
-        self._list_result = list(mediaman.core.api.run_fuzzy("mp4", service_selector=self._service_selector))[0][1]
+        self._list_result = list(self._service.fuzzy_search_by_name(""))[0][1]
+        # self._list_result = list(self._service.list_files())
 
         self._files = {
             f["name"] : {
@@ -127,6 +132,7 @@ class ReadOnlyFlatMMBackend(AbstractReadOnlyBackend):
                 "buffer": block_cache.BlockwiseBuffer(
                     size=f["size"],
                     source=functools.partial(self._read, f["hashes"][0]),
+                    prefetch_blocks=2,  # TODO(mcotton): Drive can't multithread
                 )
             }
             for f in self._list_result
@@ -163,10 +169,9 @@ class ReadOnlyFlatMMBackend(AbstractReadOnlyBackend):
 
     def _read(self, hash, length, offset):
         logging.debug(f"_read ({hash}, {length}, {offset})")
-        return b"".join(mediaman.core.api.run_stream_range(
-            service_selector=self._service_selector,
+        return b"".join(self._service.stream_range(
             root=pathlib.Path(),
-            file_name=hash,
+            identifier=hash,
             offset=offset,
             length=length,
         ))

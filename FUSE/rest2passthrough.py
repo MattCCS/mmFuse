@@ -7,10 +7,18 @@ import functools
 import logging
 import socket
 
+import collections  # NOTE: Fixes issue due to old Python (3.8): `AttributeError: module 'collections' has no attribute 'Callable'`
+collections.Callable = collections.abc.Callable
+
 from flask import Flask, request
 import msgpack
 
+from FUSE.errors import IntentionalException
 from FUSE.fuse_clients import read_only_client
+
+
+import httplib2shim  # NOTE: fixes non-thread-safe httplib2 problems caused by Google's API library
+httplib2shim.patch()
 
 
 FUSE_CLIENT = None
@@ -29,12 +37,18 @@ def unpack_q(q):
 
 def call(procname, funcname, *args, **kwargs):
     global FUSE_CLIENT
-    FUSE_CLIENT.verify_procname(procname)
     try:
-        result = getattr(FUSE_CLIENT, funcname)(*args, **kwargs)
+        FUSE_CLIENT.verify_procname(procname, args[0])
+        if funcname == "read":
+            result = getattr(FUSE_CLIENT, funcname)(*args, procname, **kwargs)
+        else:
+            result = getattr(FUSE_CLIENT, funcname)(*args, **kwargs)
         return {"result": result, "error": None}
     except Exception as e:
-        print(repr(e))
+        if not isinstance(e, IntentionalException):
+            print(repr(e))
+        else:
+            print(f"[-] Request blocked for {procname}: {str(e)}")
         return {"result": None, "error": e.args[0]}
 
 
@@ -107,6 +121,8 @@ def parse_args():
     parser.add_argument("-p", "--passthrough", default=None, help="Path to the passthrough folder")
     parser.add_argument("-m", "--mediaman", default=False, action="store_true")
     parser.add_argument("-i", "--filesystem_image_mm_hash", default=None, help="MediaMan hash of a JSON file describing a filesystem")
+    parser.add_argument("-j", "--filesystem_image", default=None, help="JSON file describing a filesystem")
+    parser.add_argument("-s", "--service_selector", default=None, help="Which service nickname to use")
     # parser.add_argument("-h", "--hashes", nargs="+", type=list, help="MM hashes to load")
     return parser.parse_args()
 
@@ -120,6 +136,8 @@ def main():
         root=args.passthrough,
         mediaman=args.mediaman,
         filesystem_image_mm_hash=args.filesystem_image_mm_hash,
+        filesystem_image=args.filesystem_image,
+        service_selector=args.service_selector,
     )
 
     app.run(threaded=True, port=4001, host="0.0.0.0", debug=True)

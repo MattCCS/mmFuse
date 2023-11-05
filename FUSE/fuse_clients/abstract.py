@@ -4,7 +4,7 @@ import abc
 
 class AbstractReadOnlyFuseClient(abc.ABC):
     @abc.abstractmethod
-    def verify_procname(self, procname):      raise NotImplementedError()  # noqa
+    def verify_procname(self, procname, path):      raise NotImplementedError()  # noqa
 
     @abc.abstractmethod
     def access(self, path, mode):             raise NotImplementedError()  # noqa

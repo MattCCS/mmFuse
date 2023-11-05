@@ -2,25 +2,29 @@
 import errno
 
 
+class IntentionalException(Exception):
+    pass
+
+
 def readonly():
     """
     Raise when the OS tries to modify a read-only resource.
     """
-    raise Exception(errno.EROFS)
+    raise IntentionalException(errno.EROFS)  # 30
 
 
 def deny():
     """
     Raise when the OS tries to access a resource with insufficient permission.
     """
-    raise Exception(errno.EACCES)
+    raise IntentionalException(errno.EACCES)  # 13
 
 
 def notreal():
     """
     Raise when the OS tries to access a resource that doesn't exist.
     """
-    raise Exception(errno.ENOENT)
+    raise IntentionalException(errno.ENOENT)  # 2
 
 
 def notreadyyet():
@@ -30,4 +34,4 @@ def notreadyyet():
 
     Identical to `errno.EWOULDBLOCK`.
     """
-    raise Exception(errno.EAGAIN)
+    raise IntentionalException(errno.EAGAIN)  # 35
